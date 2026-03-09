@@ -515,8 +515,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
 // ===== CONFIG =====
-const TARIFA_M3 = 1850;
-const CARGO_FIJO = 8500;
+const TARIFA_MINIMA = 20000; // Hasta 20 m³ → $20.000 fijo
+const TARIFA_EXCESO = 1000;  // Por cada m³ adicional sobre 20
+const LIMITE_MINIMO = 20;    // m³ del bloque mínimo
 
 // ===== STATE =====
 let clients = [];
@@ -557,9 +558,13 @@ function loadData() {
 function getConsumo(c) {
   return c.lecturaActual != null ? c.lecturaActual - c.lecturaAnterior : null;
 }
+function calcTarifa(consumo) {
+  if (consumo === null) return null;
+  if (consumo <= LIMITE_MINIMO) return TARIFA_MINIMA;
+  return TARIFA_MINIMA + (consumo - LIMITE_MINIMO) * TARIFA_EXCESO;
+}
 function getValor(c) {
-  const consumo = getConsumo(c);
-  return consumo !== null ? consumo * TARIFA_M3 + CARGO_FIJO : null;
+  return calcTarifa(getConsumo(c));
 }
 
 // ===== RENDER =====
@@ -698,7 +703,7 @@ function previewLectura() {
   const prev = document.getElementById('lectura-preview');
   if (val > c.lecturaAnterior) {
     const consumo = val - c.lecturaAnterior;
-    const valor = consumo * TARIFA_M3 + CARGO_FIJO;
+    const valor = calcTarifa(consumo);
     prev.innerHTML = `Consumo estimado: <strong>${consumo} m³</strong><br>Valor estimado: <strong>${formatCOP(valor)}</strong>`;
     prev.style.display = 'block';
   } else {
@@ -772,13 +777,15 @@ function verFactura(id) {
       <div class="fac-trow">
         <div class="fac-trow-left">
           <div class="fac-trow-title">Consumo de Agua Potable</div>
-          <div class="fac-trow-sub">Ant: ${c.lecturaAnterior} m³ → Act: ${c.lecturaActual} m³ = <b>${consumo} m³</b> × ${formatCOP(TARIFA_M3)}/m³</div>
+          <div class="fac-trow-sub">
+            Ant: ${c.lecturaAnterior} m³ → Act: ${c.lecturaActual} m³ = <b>${consumo} m³</b><br>
+            ${consumo <= LIMITE_MINIMO
+              ? `Tarifa mínima (≤ ${LIMITE_MINIMO} m³)`
+              : `Mínimo ${LIMITE_MINIMO} m³: ${formatCOP(TARIFA_MINIMA)} + ${consumo - LIMITE_MINIMO} m³ adicionales × ${formatCOP(TARIFA_EXCESO)}`
+            }
+          </div>
         </div>
-        <div class="fac-trow-val">${formatCOP(consumo * TARIFA_M3)}</div>
-      </div>
-      <div class="fac-trow">
-        <div class="fac-trow-left"><div class="fac-trow-title">Cargo Fijo Mensual</div></div>
-        <div class="fac-trow-val">${formatCOP(CARGO_FIJO)}</div>
+        <div class="fac-trow-val">${formatCOP(valor)}</div>
       </div>
       <div class="fac-total">
         <span class="fac-total-label">TOTAL A PAGAR</span>
