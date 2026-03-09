@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Acueducto">
+<meta name="theme-color" content="#0f6fcf">
+<title>Acueducto Municipal</title>
+
+<script>
+// Manifest inline para PWA
+const manifest = {
+  name: "Acueducto Municipal",
+  short_name: "Acueducto",
+  description: "Sistema de gestión de medidores de acueducto",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#eef2f7",
+  theme_color: "#0f6fcf",
+  orientation: "portrait",
+  icons: [
+    {
+      src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f6fcf'/><text y='.9em' font-size='75' x='12'>💧</text></svg>",
+      sizes: "192x192",
+      type: "image/svg+xml"
+    }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+const manifestUrl = URL.createObjectURL(blob);
+document.addEventListener('DOMContentLoaded', () => {
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = manifestUrl;
+  document.head.appendChild(link);
+});
+</script>
+
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #eef2f7;
+    color: #1e293b;
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { cursor: pointer; border: none; font-family: inherit; }
+  input { font-family: inherit; }
+  input:focus { outline: 2px solid #0f6fcf; outline-offset: 1px; }
+
+  /* ===== APP SHELL ===== */
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #eef2f7; }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, #0f6fcf 0%, #0a4d94 100%);
+    color: #fff;
+    padding: 18px 18px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 2px 12px rgba(15,111,207,0.3);
+  }
+  .header-left { display: flex; align-items: center; gap: 11px; }
+  .header-icon { font-size: 30px; line-height: 1; }
+  .header-title { font-size: 20px; font-weight: 800; letter-spacing: 1.5px; }
+  .header-sub { font-size: 11px; opacity: 0.75; margin-top: 1px; }
+  .header-mes { font-size: 12px; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 20px; }
+
+  /* ===== STATS ===== */
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px;
+    padding: 12px 12px 0;
+  }
+  .stat-card {
+    background: #fff; border-radius: 10px; padding: 10px 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    border-top: 3px solid transparent;
+    text-align: center;
+  }
+  .stat-card.blue { border-color: #3b82f6; }
+  .stat-card.amber { border-color: #f59e0b; }
+  .stat-card.green { border-color: #10b981; }
+  .stat-card.purple { border-color: #6366f1; }
+  .stat-num { font-size: 20px; font-weight: 800; color: #1e293b; }
+  .stat-num.amber { color: #d97706; }
+  .stat-num.green { color: #059669; }
+  .stat-num.purple { color: #4f46e5; font-size: 13px; padding-top: 3px; }
+  .stat-label { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+  /* ===== TOOLBAR ===== */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 12px 8px;
+  }
+  .filter-group { display: flex; gap: 5px; }
+  .filter-btn {
+    padding: 6px 12px; border-radius: 20px;
+    border: 1.5px solid #cbd5e1; background: #fff;
+    font-size: 12px; color: #475569; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .filter-btn.active { background: #0f6fcf; border-color: #0f6fcf; color: #fff; }
+  .btn-add {
+    background: #10b981; color: #fff; border-radius: 20px;
+    padding: 8px 15px; font-weight: 700; font-size: 13px;
+    box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+  }
+
+  /* ===== CLIENT LIST ===== */
+  .client-list { display: flex; flex-direction: column; gap: 10px; padding: 0 12px 24px; }
+  .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; font-size: 14px; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ===== CLIENT CARD ===== */
+  .client-card {
+    background: #fff; border-radius: 14px; padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    border: 1px solid #e2e8f0;
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+  .client-name { font-weight: 700; font-size: 15px; color: #1e293b; }
+  .client-meta { font-size: 11px; color: #64748b; margin-top: 3px; }
+  .badge {
+    border-radius: 20px; padding: 4px 9px; font-size: 11px; font-weight: 700;
+    white-space: nowrap; flex-shrink: 0; margin-left: 8px;
+  }
+  .badge-pendiente { background: #fef3c7; color: #d97706; }
+  .badge-actualizado { background: #dcfce7; color: #059669; }
+
+  /* ===== LECTURAS GRID ===== */
+  .lectura-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 12px; }
+  .lectura-box { background: #f8fafc; border-radius: 8px; padding: 7px 6px; }
+  .lectura-box.warn { background: #fef3c7; }
+  .lectura-box.ok { background: #dcfce7; }
+  .lectura-box.blue { background: #eff6ff; }
+  .lectura-box.purple { background: #f5f3ff; }
+  .lec-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+  .lec-val { font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 2px; }
+  .lec-val.blue { color: #1d4ed8; }
+  .lec-val.purple { color: #6d28d9; font-size: 11px; }
+
+  /* ===== CARD ACTIONS ===== */
+  .card-actions { display: flex; gap: 8px; }
+  .btn-registrar {
+    flex: 1; background: #f59e0b; color: #fff; border-radius: 10px;
+    padding: 10px; font-weight: 700; font-size: 13px;
+  }
+  .btn-factura {
+    flex: 1; background: #0f6fcf; color: #fff; border-radius: 10px;
+    padding: 10px; font-weight: 700; font-size: 13px;
+  }
+  .btn-delete {
+    background: #fef2f2; color: #dc2626;
+    border: 1.5px solid #fecaca; border-radius: 10px;
+    padding: 10px 13px; font-size: 15px;
+  }
+
+  /* ===== MODAL ===== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: flex-end; justify-content: center;
+    z-index: 100; animation: fadeIn 0.15s;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: #fff; border-radius: 20px 20px 0 0;
+    padding: 24px; width: 100%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(40px); } to { transform: translateY(0); } }
+  .modal-title { font-size: 19px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+  .modal-info {
+    background: #eff6ff; border-radius: 8px;
+    padding: 9px 12px; font-size: 13px; color: #1e40af; margin-bottom: 14px;
+  }
+  label { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; margin-top: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 12px 14px; border-radius: 10px;
+    border: 1.5px solid #e2e8f0; font-size: 15px;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: #0f6fcf; }
+  .preview-box {
+    background: #f0fdf4; border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: #166534;
+    margin-top: 10px; line-height: 1.8;
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-secondary {
+    flex: 1; background: #f1f5f9; color: #475569;
+    border-radius: 10px; padding: 12px; font-weight: 600; font-size: 14px;
+  }
+  .btn-primary {
+    flex: 2; background: #0f6fcf; color: #fff;
+    border-radius: 10px; padding: 12px; font-weight: 700; font-size: 14px;
+  }
+
+  /* ===== BACKUP BAR ===== */
+  .backup-bar {
+    display: flex; gap: 8px; padding: 0 12px 10px;
+  }
+  .btn-export {
+    flex: 1; background: #fff; border: 1.5px solid #10b981; color: #059669;
+    border-radius: 10px; padding: 9px 8px; font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .btn-import {
+    flex: 1; background: #fff; border: 1.5px solid #f59e0b; color: #d97706;
+    border-radius: 10px; padding: 9px 8px; font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .btn-cierre {
+    flex: 1; background: #fff; border: 1.5px solid #6366f1; color: #4f46e5;
+    border-radius: 10px; padding: 9px 8px; font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+
+  /* ===== CIERRE MODAL ===== */
+  .cierre-card {
+    background: #f8fafc; border-radius: 12px; padding: 14px;
+    margin-bottom: 12px; border: 1px solid #e2e8f0;
+  }
+  .cierre-nombre { font-weight: 700; font-size: 14px; color: #1e293b; }
+  .cierre-detalle { font-size: 12px; color: #64748b; margin-top: 3px; }
+  .cierre-valor { font-size: 16px; font-weight: 800; color: #0f6fcf; margin-top: 6px; }
+  .cierre-aviso {
+    background: #fef3c7; border-radius: 10px; padding: 12px 14px;
+    font-size: 12px; color: #92400e; margin-bottom: 16px; line-height: 1.6;
+  }
+
+  /* ===== TOAST ===== */
+  #toast {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    color: #fff; padding: 10px 20px; border-radius: 20px;
+    font-weight: 600; font-size: 13px; z-index: 200;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+    display: none; white-space: nowrap;
+    animation: fadeIn 0.2s;
+  }
+
+  /* ===== FACTURA SCREEN ===== */
+  #factura-screen { display: none; background: #eef2f7; min-height: 100vh; padding-bottom: 30px; }
+  .factura-card {
+    background: #fff; margin: 14px; border-radius: 16px;
+    overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+  .fac-header {
+    background: linear-gradient(135deg, #0f6fcf, #0a4d94);
+    color: #fff; padding: 18px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .fac-logo { display: flex; align-items: center; gap: 10px; }
+  .fac-empresa { font-weight: 800; font-size: 15px; letter-spacing: 0.5px; }
+  .fac-subtitulo { font-size: 11px; opacity: 0.8; margin-top: 1px; }
+  .fac-num-label { font-size: 10px; opacity: 0.75; text-transform: uppercase; text-align: right; }
+  .fac-num-val { font-weight: 700; font-size: 12px; margin-top: 2px; text-align: right; }
+
+  .fac-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .fac-section { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; }
+  .fac-section-title { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px; }
+  .fac-row { display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-bottom: 3px; }
+  .fac-row strong { color: #1e293b; }
+
+  .fac-table { padding: 0 16px 14px; }
+  .fac-thead {
+    display: flex; justify-content: space-between;
+    font-size: 10px; font-weight: 700; color: #94a3b8;
+    text-transform: uppercase; padding: 10px 0 7px;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .fac-trow {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 11px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px;
+  }
+  .fac-trow-left { flex: 1; }
+  .fac-trow-title { font-weight: 600; color: #1e293b; }
+  .fac-trow-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .fac-trow-val { font-weight: 700; color: #1e293b; white-space: nowrap; margin-left: 8px; }
+
+  .fac-total {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 0 0; border-top: 2px solid #0f6fcf;
+    margin-top: 3px;
+  }
+  .fac-total-label { font-weight: 700; font-size: 14px; }
+  .fac-total-val { font-size: 20px; font-weight: 800; color: #0f6fcf; }
+
+  .fac-footer { background: #fef3c7; padding: 11px 16px; font-size: 11px; color: #92400e; }
+
+  .fac-actions { display: flex; gap: 10px; margin: 0 14px 14px; }
+  .btn-back {
+    flex: 1; background: #f1f5f9; color: #475569;
+    border-radius: 10px; padding: 13px; font-weight: 600; font-size: 14px;
+  }
+  .btn-print {
+    flex: 2; background: #0f6fcf; color: #fff;
+    border-radius: 10px; padding: 13px; font-weight: 700; font-size: 14px;
+    box-shadow: 0 3px 10px rgba(15,111,207,0.3);
+  }
+
+  /* ===== SYNC BAR ===== */
+  .sync-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fff; padding: 8px 14px;
+    border-bottom: 1px solid #e2e8f0; font-size: 12px;
+  }
+  .sync-status { display: flex; align-items: center; gap: 6px; color: #64748b; }
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;
+    transition: background 0.3s;
+  }
+  .sync-dot.syncing { background: #f59e0b; animation: pulse 1s infinite; }
+  .sync-dot.ok      { background: #10b981; }
+  .sync-dot.error   { background: #ef4444; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .btn-sync-now {
+    background: #eff6ff; color: #0f6fcf; border: 1px solid #bfdbfe;
+    border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700;
+  }
+  .btn-config-sheets {
+    background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0;
+    border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700;
+  }
+
+  /* ===== MODAL CONFIG ===== */
+  .config-step {
+    background: #f8fafc; border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 10px; border-left: 3px solid #0f6fcf; font-size: 13px;
+    line-height: 1.6; color: #475569;
+  }
+  .config-step strong { color: #1e293b; }
+  .config-step code {
+    background: #e2e8f0; padding: 2px 6px; border-radius: 4px;
+    font-size: 11px; color: #1e293b; word-break: break-all;
+  }
+
+  /* ===== PRINT STYLES ===== */
+  @media print {
+    body { background: #fff !important; }
+    #app, #main-screen { display: none !important; }
+    #factura-screen { display: block !important; background: #fff !important; padding: 0 !important; }
+    .fac-actions { display: none !important; }
+    .factura-card { margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+    .header { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- MAIN SCREEN -->
+<div id="main-screen">
+  <div id="app">
+    <div class="header">
+      <div class="header-left">
+        <span class="header-icon">💧</span>
+        <div>
+          <div class="header-title">ACUEDUCTO</div>
+          <div class="header-sub">Sistema de Gestión de Medidores</div>
+        </div>
+      </div>
+      <span class="header-mes" id="header-mes"></span>
+    </div>
+
+    <!-- BARRA DE SINCRONIZACIÓN -->
+    <div class="sync-bar" id="sync-bar">
+      <div class="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">Sin configurar</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-config-sheets" onclick="openConfigModal()">⚙️ Configurar</button>
+        <button class="btn-sync-now" id="btn-sync-now" onclick="syncNow()" style="display:none">↻ Sincronizar</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card blue"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Clientes</div></div>
+      <div class="stat-card amber"><div class="stat-num amber" id="stat-pend">0</div><div class="stat-label">Pendientes</div></div>
+      <div class="stat-card green"><div class="stat-num green" id="stat-act">0</div><div class="stat-label">Actualizados</div></div>
+      <div class="stat-card purple"><div class="stat-num purple" id="stat-consumo">0 m³</div><div class="stat-label">Consumo</div></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="filter-group">
+        <button class="filter-btn active" data-filter="todos" onclick="setFilter('todos')">Todos</button>
+        <button class="filter-btn" data-filter="pendiente" onclick="setFilter('pendiente')">Pendientes</button>
+        <button class="filter-btn" data-filter="actualizado" onclick="setFilter('actualizado')">Al día</button>
+      </div>
+      <button class="btn-add" onclick="openAddModal()">+ Nuevo</button>
+    </div>
+
+    <div class="backup-bar">
+      <button class="btn-export" onclick="exportarDatos()">💾 Exportar</button>
+      <button class="btn-import" onclick="document.getElementById('import-file').click()">📂 Importar</button>
+      <button class="btn-cierre" onclick="openCierreModal()">📅 Cierre mes</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarDatos(event)">
+    </div>
+
+    <div class="client-list" id="client-list"></div>
+  </div>
+</div>
+
+<!-- FACTURA SCREEN -->
+<div id="factura-screen">
+  <div class="header">
+    <div class="header-left">
+      <span class="header-icon">💧</span>
+      <div>
+        <div class="header-title">FACTURA</div>
+        <div class="header-sub">Servicio Público de Acueducto</div>
+      </div>
+    </div>
+  </div>
+  <div class="factura-card" id="factura-content"></div>
+  <div class="fac-actions">
+    <button class="btn-back" onclick="closeFactura()">← Volver</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  </div>
+</div>
+
+<!-- MODAL: CONFIGURAR GOOGLE SHEETS -->
+<div class="overlay" id="modal-config" style="display:none" onclick="if(event.target===this)closeModal('modal-config')">
+  <div class="modal">
+    <div class="modal-title">⚙️ Conectar Google Sheets</div>
+    <div class="modal-sub">Sigue estos pasos una sola vez desde el computador</div>
+
+    <div class="config-step">
+      <strong>Paso 1.</strong> Ve a <code>sheets.google.com</code> y crea una hoja nueva. Ponle el nombre que quieras.
+    </div>
+    <div class="config-step">
+      <strong>Paso 2.</strong> En el menú de la hoja ve a <code>Extensiones → Apps Script</code>.
+    </div>
+    <div class="config-step">
+      <strong>Paso 3.</strong> Borra el código que aparece y pega el contenido del archivo <code>codigo_google_script.js</code> que descargaste.
+    </div>
+    <div class="config-step">
+      <strong>Paso 4.</strong> Clic en <code>Implementar → Nueva implementación</code>. Tipo: <strong>App web</strong>. Ejecutar como: <strong>Yo</strong>. Acceso: <strong>Cualquier persona</strong>. Clic en <strong>Implementar</strong> y autoriza.
+    </div>
+    <div class="config-step">
+      <strong>Paso 5.</strong> Copia la <strong>URL de implementación</strong> que te da y pégala aquí abajo:
+    </div>
+
+    <label>URL de Google Apps Script</label>
+    <input type="text" id="config-url" placeholder="https://script.google.com/macros/s/..." style="font-size:12px">
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-config')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarConfig()">💾 Guardar y probar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CIERRE MENSUAL -->
+<div class="overlay" id="modal-cierre" style="display:none" onclick="if(event.target===this)closeModal('modal-cierre')">
+  <div class="modal">
+    <div class="modal-title">📅 Cierre Mensual</div>
+    <div class="modal-sub">Restablece lecturas para el nuevo mes</div>
+    <div class="cierre-aviso">
+      ⚠️ Esto convierte la <strong>lectura actual → en la nueva lectura anterior</strong> de cada cliente actualizado, y borra la lectura actual para empezar el nuevo mes.<br><br>
+      Asegúrate de haber generado todas las facturas antes de hacer el cierre.
+    </div>
+    <div id="cierre-lista"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-cierre')">Cancelar</button>
+      <button class="btn-primary" style="background:#6366f1" onclick="ejecutarCierre()">✅ Ejecutar Cierre</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="modal-lectura" style="display:none" onclick="if(event.target===this)closeModal('modal-lectura')">
+  <div class="modal">
+    <div class="modal-title">📏 Registrar Lectura</div>
+    <div class="modal-sub" id="lectura-sub"></div>
+    <div class="modal-info" id="lectura-info"></div>
+    <label>Lectura Actual (m³)</label>
+    <input type="number" id="lectura-input" placeholder="Ingrese la lectura del medidor" oninput="previewLectura()">
+    <div class="preview-box" id="lectura-preview" style="display:none"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-lectura')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarLectura()">Guardar Lectura</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVO CLIENTE -->
+<div class="overlay" id="modal-nuevo" style="display:none" onclick="if(event.target===this)closeModal('modal-nuevo')">
+  <div class="modal">
+    <div class="modal-title">👤 Nuevo Cliente</div>
+    <div class="modal-sub">Completa los datos para agregar el cliente</div>
+    <label>Nombre completo *</label>
+    <input type="text" id="new-nombre" placeholder="Ej: Juan García">
+    <label>Dirección</label>
+    <input type="text" id="new-direccion" placeholder="Ej: Calle 5 # 12-34">
+    <label>N° de Medidor *</label>
+    <input type="text" id="new-medidor" placeholder="Ej: 045-C">
+    <label>Lectura inicial del medidor (m³) *</label>
+    <input type="number" id="new-lectura" placeholder="Ej: 1250">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-nuevo')">Cancelar</button>
+      <button class="btn-primary" onclick="agregarCliente()">Agregar Cliente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const TARIFA_M3 = 1850;
+const CARGO_FIJO = 8500;
+
+// ===== STATE =====
+let clients = [];
+let currentFilter = 'todos';
+let selectedClientId = null;
+
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+function mesActual() {
+  const d = new Date();
+  return `${MESES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function formatCOP(n) {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+}
+
+// ===== STORAGE =====
+function saveData() {
+  localStorage.setItem('acueducto_clients', JSON.stringify(clients));
+}
+
+function loadData() {
+  const saved = localStorage.getItem('acueducto_clients');
+  if (saved) {
+    clients = JSON.parse(saved);
+  } else {
+    clients = [
+      { id: 1, nombre: "Carlos Pérez", direccion: "Calle 12 # 5-34", medidor: "001-A", lecturaAnterior: 1240, lecturaActual: null, fechaAct: null },
+      { id: 2, nombre: "María González", direccion: "Carrera 8 # 3-12", medidor: "002-B", lecturaAnterior: 870, lecturaActual: 912, fechaAct: "2026-03-05" },
+      { id: 3, nombre: "Luis Martínez", direccion: "Calle 6 # 9-01", medidor: "003-C", lecturaAnterior: 3100, lecturaActual: null, fechaAct: null },
+    ];
+    saveData();
+  }
+}
+
+// ===== COMPUTED =====
+function getConsumo(c) {
+  return c.lecturaActual != null ? c.lecturaActual - c.lecturaAnterior : null;
+}
+function getValor(c) {
+  const consumo = getConsumo(c);
+  return consumo !== null ? consumo * TARIFA_M3 + CARGO_FIJO : null;
+}
+
+// ===== RENDER =====
+function render() {
+  document.getElementById('header-mes').textContent = mesActual();
+
+  const pendientes = clients.filter(c => !c.lecturaActual).length;
+  const actualizados = clients.filter(c => c.lecturaActual).length;
+  const consumoTotal = clients.filter(c => c.lecturaActual).reduce((s, c) => s + getConsumo(c), 0);
+
+  document.getElementById('stat-total').textContent = clients.length;
+  document.getElementById('stat-pend').textContent = pendientes;
+  document.getElementById('stat-act').textContent = actualizados;
+  document.getElementById('stat-consumo').textContent = consumoTotal + ' m³';
+
+  const filtered = clients.filter(c => {
+    if (currentFilter === 'pendiente') return !c.lecturaActual;
+    if (currentFilter === 'actualizado') return !!c.lecturaActual;
+    return true;
+  });
+
+  const list = document.getElementById('client-list');
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div>No hay clientes en esta categoría</div></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(c => {
+    const consumo = getConsumo(c);
+    const valor = getValor(c);
+    const isPend = !c.lecturaActual;
+    return `
+      <div class="client-card">
+        <div class="card-top">
+          <div>
+            <div class="client-name">${escHtml(c.nombre)}</div>
+            <div class="client-meta">📍 ${escHtml(c.direccion || 'Sin dirección')} &nbsp;|&nbsp; 🔢 ${escHtml(c.medidor)}</div>
+          </div>
+          <span class="badge ${isPend ? 'badge-pendiente' : 'badge-actualizado'}">${isPend ? '⏳ Pendiente' : '✅ Al día'}</span>
+        </div>
+        <div class="lectura-grid">
+          <div class="lectura-box">
+            <div class="lec-label">Anterior</div>
+            <div class="lec-val">${c.lecturaAnterior} <small style="font-weight:400;color:#94a3b8;font-size:10px">m³</small></div>
+          </div>
+          <div class="lectura-box ${isPend ? 'warn' : 'ok'}">
+            <div class="lec-label">Actual</div>
+            <div class="lec-val">${c.lecturaActual ?? '—'} <small style="font-weight:400;color:#94a3b8;font-size:10px">${c.lecturaActual ? 'm³' : ''}</small></div>
+          </div>
+          <div class="lectura-box blue">
+            <div class="lec-label">Consumo</div>
+            <div class="lec-val blue">${consumo !== null ? consumo + ' m³' : '—'}</div>
+          </div>
+          <div class="lectura-box purple">
+            <div class="lec-label">Valor</div>
+            <div class="lec-val purple">${valor !== null ? formatCOP(valor) : '—'}</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          ${isPend
+            ? `<button class="btn-registrar" onclick="openLecturaModal(${c.id})">📏 Registrar Lectura</button>`
+            : `<button class="btn-factura" onclick="verFactura(${c.id})">🧾 Generar Factura</button>`
+          }
+          <button class="btn-delete" onclick="eliminarCliente(${c.id})">🗑️</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== FILTER =====
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  render();
+}
+
+// ===== TOAST =====
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'error' ? '#ef4444' : '#10b981';
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3000);
+}
+
+// ===== MODALS =====
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function openAddModal() {
+  document.getElementById('new-nombre').value = '';
+  document.getElementById('new-direccion').value = '';
+  document.getElementById('new-medidor').value = '';
+  document.getElementById('new-lectura').value = '';
+  document.getElementById('modal-nuevo').style.display = 'flex';
+  setTimeout(() => document.getElementById('new-nombre').focus(), 100);
+}
+
+function agregarCliente() {
+  const nombre = document.getElementById('new-nombre').value.trim();
+  const direccion = document.getElementById('new-direccion').value.trim();
+  const medidor = document.getElementById('new-medidor').value.trim();
+  const lecturaAnterior = parseFloat(document.getElementById('new-lectura').value);
+  if (!nombre || !medidor || isNaN(lecturaAnterior)) {
+    showToast('Completa todos los campos requeridos', 'error'); return;
+  }
+  const client = { id: Date.now(), nombre, direccion, medidor, lecturaAnterior, lecturaActual: null, fechaAct: null };
+  clients.push(client);
+  saveData();
+  closeModal('modal-nuevo');
+  showToast(`✓ ${nombre} agregado exitosamente`);
+  render();
+}
+
+function openLecturaModal(id) {
+  selectedClientId = id;
+  const c = clients.find(x => x.id === id);
+  document.getElementById('lectura-sub').textContent = `${c.nombre} — Medidor ${c.medidor}`;
+  document.getElementById('lectura-info').innerHTML = `Lectura anterior: <strong>${c.lecturaAnterior} m³</strong>`;
+  document.getElementById('lectura-input').value = '';
+  document.getElementById('lectura-input').placeholder = `Mayor a ${c.lecturaAnterior}`;
+  document.getElementById('lectura-preview').style.display = 'none';
+  document.getElementById('modal-lectura').style.display = 'flex';
+  setTimeout(() => document.getElementById('lectura-input').focus(), 100);
+}
+
+function previewLectura() {
+  const c = clients.find(x => x.id === selectedClientId);
+  const val = parseFloat(document.getElementById('lectura-input').value);
+  const prev = document.getElementById('lectura-preview');
+  if (val > c.lecturaAnterior) {
+    const consumo = val - c.lecturaAnterior;
+    const valor = consumo * TARIFA_M3 + CARGO_FIJO;
+    prev.innerHTML = `Consumo estimado: <strong>${consumo} m³</strong><br>Valor estimado: <strong>${formatCOP(valor)}</strong>`;
+    prev.style.display = 'block';
+  } else {
+    prev.style.display = 'none';
+  }
+}
+
+function guardarLectura() {
+  const c = clients.find(x => x.id === selectedClientId);
+  const val = parseFloat(document.getElementById('lectura-input').value);
+  if (isNaN(val) || val <= c.lecturaAnterior) {
+    showToast('La lectura debe ser mayor a la anterior', 'error'); return;
+  }
+  c.lecturaActual = val;
+  c.fechaAct = new Date().toISOString().split('T')[0];
+  saveData();
+  closeModal('modal-lectura');
+  showToast('✓ Lectura registrada correctamente');
+  render();
+}
+
+function eliminarCliente(id) {
+  if (!confirm('¿Eliminar este cliente?')) return;
+  clients = clients.filter(c => c.id !== id);
+  saveData();
+  showToast('Cliente eliminado');
+  render();
+}
+
+// ===== FACTURA =====
+function verFactura(id) {
+  const c = clients.find(x => x.id === id);
+  const consumo = getConsumo(c);
+  const valor = getValor(c);
+  const fecha = new Date();
+  const fechaLim = new Date(); fechaLim.setDate(fechaLim.getDate() + 15);
+  const numFac = `FAC-${String(c.id).padStart(4,'0')}-${fecha.getFullYear()}${String(fecha.getMonth()+1).padStart(2,'0')}`;
+
+  document.getElementById('factura-content').innerHTML = `
+    <div class="fac-header">
+      <div class="fac-logo">
+        <span style="font-size:26px">💧</span>
+        <div>
+          <div class="fac-empresa">ACUEDUCTO MUNICIPAL</div>
+          <div class="fac-subtitulo">Factura de Servicio Público</div>
+        </div>
+      </div>
+      <div>
+        <div class="fac-num-label">N° Factura</div>
+        <div class="fac-num-val">${numFac}</div>
+      </div>
+    </div>
+
+    <div class="fac-grid">
+      <div class="fac-section">
+        <div class="fac-section-title">Datos del Cliente</div>
+        <div class="fac-row"><span>Nombre:</span><strong>${escHtml(c.nombre)}</strong></div>
+        <div class="fac-row"><span>Dirección:</span><strong>${escHtml(c.direccion || '—')}</strong></div>
+        <div class="fac-row"><span>Medidor:</span><strong>${escHtml(c.medidor)}</strong></div>
+      </div>
+      <div class="fac-section">
+        <div class="fac-section-title">Período de Facturación</div>
+        <div class="fac-row"><span>Período:</span><strong>${mesActual()}</strong></div>
+        <div class="fac-row"><span>Emisión:</span><strong>${fecha.toLocaleDateString('es-CO')}</strong></div>
+        <div class="fac-row"><span>Límite pago:</span><strong>${fechaLim.toLocaleDateString('es-CO')}</strong></div>
+      </div>
+    </div>
+
+    <div class="fac-table">
+      <div class="fac-thead"><span>Concepto</span><span>Valor</span></div>
+      <div class="fac-trow">
+        <div class="fac-trow-left">
+          <div class="fac-trow-title">Consumo de Agua Potable</div>
+          <div class="fac-trow-sub">Ant: ${c.lecturaAnterior} m³ → Act: ${c.lecturaActual} m³ = <b>${consumo} m³</b> × ${formatCOP(TARIFA_M3)}/m³</div>
+        </div>
+        <div class="fac-trow-val">${formatCOP(consumo * TARIFA_M3)}</div>
+      </div>
+      <div class="fac-trow">
+        <div class="fac-trow-left"><div class="fac-trow-title">Cargo Fijo Mensual</div></div>
+        <div class="fac-trow-val">${formatCOP(CARGO_FIJO)}</div>
+      </div>
+      <div class="fac-total">
+        <span class="fac-total-label">TOTAL A PAGAR</span>
+        <span class="fac-total-val">${formatCOP(valor)}</span>
+      </div>
+    </div>
+    <div class="fac-footer">⚠️ El no pago oportuno causará intereses de mora y posible suspensión del servicio.</div>
+  `;
+
+  document.getElementById('main-screen').style.display = 'none';
+  document.getElementById('factura-screen').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function closeFactura() {
+  document.getElementById('factura-screen').style.display = 'none';
+  document.getElementById('main-screen').style.display = 'block';
+}
+
+// ===== EXPORTAR / IMPORTAR =====
+function exportarDatos() {
+  const data = {
+    version: 1,
+    fechaExport: new Date().toISOString(),
+    mes: mesActual(),
+    clients: clients
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fecha = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `acueducto_respaldo_${fecha}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Respaldo exportado correctamente');
+}
+
+function importarDatos(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.clients || !Array.isArray(data.clients)) {
+        showToast('Archivo inválido', 'error'); return;
+      }
+      if (!confirm(`¿Restaurar ${data.clients.length} clientes del respaldo del ${data.mes || 'fecha desconocida'}? Esto reemplazará los datos actuales.`)) return;
+      clients = data.clients;
+      saveData();
+      render();
+      showToast(`✓ ${clients.length} clientes restaurados`);
+    } catch {
+      showToast('Error al leer el archivo', 'error');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ===== CIERRE MENSUAL =====
+function openCierreModal() {
+  const actualizados = clients.filter(c => c.lecturaActual);
+  const pendientes = clients.filter(c => !c.lecturaActual);
+  let html = '';
+  if (actualizados.length === 0) {
+    html = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:14px">No hay clientes con lectura registrada este mes.</div>';
+  } else {
+    html += `<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:8px">Se procesarán ${actualizados.length} cliente(s):</div>`;
+    html += actualizados.map(c => {
+      const consumo = getConsumo(c);
+      const valor = getValor(c);
+      return `
+        <div class="cierre-card">
+          <div class="cierre-nombre">${escHtml(c.nombre)}</div>
+          <div class="cierre-detalle">Medidor ${escHtml(c.medidor)} &nbsp;|&nbsp; ${c.lecturaAnterior} → ${c.lecturaActual} m³ = <strong>${consumo} m³</strong></div>
+          <div class="cierre-valor">${formatCOP(valor)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+  if (pendientes.length > 0) {
+    html += `<div style="background:#fef2f2;border-radius:10px;padding:10px 14px;font-size:12px;color:#dc2626;margin-top:8px">
+      ⚠️ ${pendientes.length} cliente(s) aún <strong>pendientes</strong> no serán procesados: ${pendientes.map(c=>c.nombre).join(', ')}
+    </div>`;
+  }
+  document.getElementById('cierre-lista').innerHTML = html;
+  document.getElementById('modal-cierre').style.display = 'flex';
+}
+
+function ejecutarCierre() {
+  const actualizados = clients.filter(c => c.lecturaActual);
+  if (actualizados.length === 0) { closeModal('modal-cierre'); return; }
+  clients = clients.map(c => {
+    if (!c.lecturaActual) return c;
+    return {
+      ...c,
+      lecturaAnterior: c.lecturaActual,
+      lecturaActual: null,
+      fechaAct: null
+    };
+  });
+  saveData();
+  closeModal('modal-cierre');
+  render();
+  showToast(`✓ Cierre realizado — ${actualizados.length} clientes listos para el nuevo mes`);
+}
+
+// ===== GOOGLE SHEETS SYNC =====
+let SCRIPT_URL = localStorage.getItem('acueducto_script_url') || '';
+let syncTimer  = null;
+const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutos
+
+function setSyncStatus(state, msg) {
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  const btn   = document.getElementById('btn-sync-now');
+  dot.className   = 'sync-dot ' + state;
+  label.textContent = msg;
+  btn.style.display = SCRIPT_URL ? 'block' : 'none';
+}
+
+function openConfigModal() {
+  document.getElementById('config-url').value = SCRIPT_URL;
+  document.getElementById('modal-config').style.display = 'flex';
+}
+
+async function guardarConfig() {
+  const url = document.getElementById('config-url').value.trim();
+  if (!url.startsWith('https://script.google.com')) {
+    showToast('URL inválida — debe comenzar con https://script.google.com', 'error'); return;
+  }
+  SCRIPT_URL = url;
+  localStorage.setItem('acueducto_script_url', url);
+  closeModal('modal-config');
+  showToast('Probando conexión...');
+  await syncNow();
+}
+
+async function syncNow() {
+  if (!SCRIPT_URL) { showToast('Configura la URL de Google Sheets primero', 'error'); return; }
+  setSyncStatus('syncing', 'Sincronizando...');
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sync', clients }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      setSyncStatus('ok', `Sincronizado a las ${hora}`);
+      localStorage.setItem('acueducto_last_sync', new Date().toISOString());
+      showToast(`✓ Sincronizado — ${data.synced} clientes en Google Sheets`);
+    } else {
+      setSyncStatus('error', 'Error al sincronizar');
+      showToast('Error: ' + (data.error || 'desconocido'), 'error');
+    }
+  } catch (err) {
+    setSyncStatus('error', 'Sin conexión (datos guardados localmente)');
+  }
+}
+
+function syncSilente() {
+  if (SCRIPT_URL && navigator.onLine) syncNow();
+}
+
+function initSync() {
+  if (SCRIPT_URL) {
+    const lastSync = localStorage.getItem('acueducto_last_sync');
+    if (lastSync) {
+      const hora = new Date(lastSync).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      setSyncStatus('ok', `Último sync: ${hora}`);
+    } else {
+      setSyncStatus('ok', 'Conectado a Google Sheets');
+    }
+    document.getElementById('btn-sync-now').style.display = 'block';
+    // Sincronizar al abrir
+    setTimeout(syncSilente, 1500);
+    // Sincronizar cada 5 minutos
+    syncTimer = setInterval(syncSilente, SYNC_INTERVAL);
+  } else {
+    setSyncStatus('', 'Sin sincronización');
+  }
+}
+
+// Sincronizar automáticamente al guardar cambios
+const _saveData = saveData;
+saveData = function() {
+  _saveData();
+  // Sync silencioso 2 segundos después de cada cambio
+  clearTimeout(window._syncDebounce);
+  window._syncDebounce = setTimeout(syncSilente, 2000);
+};
+
+// ===== INIT =====
+loadData();
+render();
+initSync();
+
+// ===== SERVICE WORKER INLINE (offline completo) =====
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'acueducto-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(
+        caches.open(CACHE).then(cache =>
+          cache.add(new Request(self.location.origin + self.location.pathname))
+        )
+      );
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(clients.claim());
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(cached => {
+          if (cached) return cached;
+          return fetch(e.request).then(response => {
+            if (!response || response.status !== 200) return response;
+            const clone = response.clone();
+            caches.open(CACHE).then(cache => cache.put(e.request, clone));
+            return response;
+          }).catch(() => caches.match(e.request));
+        })
+      );
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl, { scope: './' })
+    .then(() => console.log('✅ Offline listo'))
+    .catch(e => console.log('SW no disponible (normal en localhost):', e));
+}
+</script>
+</body>
+</html>
