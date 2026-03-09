@@ -924,11 +924,14 @@ async function syncNow() {
   if (!SCRIPT_URL) { showToast('Configura la URL de Google Sheets primero', 'error'); return; }
   setSyncStatus('syncing', 'Sincronizando...');
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'sync', clients }),
+    // Google Apps Script requiere enviar datos como parámetro GET para evitar CORS
+    const payload = encodeURIComponent(JSON.stringify({ action: 'sync', clients }));
+    const res = await fetch(`${SCRIPT_URL}?data=${payload}`, {
+      method: 'GET',
+      redirect: 'follow',
     });
-    const data = await res.json();
+    const text = await res.text();
+    const data = JSON.parse(text);
     if (data.ok) {
       const hora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
       setSyncStatus('ok', `Sincronizado a las ${hora}`);
