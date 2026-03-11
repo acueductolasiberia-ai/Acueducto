@@ -169,6 +169,8 @@ input:focus{outline:2px solid var(--azul-m);outline-offset:1px}
 .btn-fac-done{flex:1;background:var(--facturado-l);color:var(--facturado);border:1.5px solid #bfdbfe;border-radius:var(--rb);padding:10px;font-weight:700;font-size:12px}
 .btn-del{background:var(--red-l);color:var(--red);border:1.5px solid #fecaca;border-radius:var(--rb);padding:10px 12px;font-size:15px}
 .btn-del:hover{background:#fee2e2}
+.btn-edit{background:#f1f5f9;color:var(--muted);border:1.5px solid var(--border);border-radius:var(--rb);padding:10px 12px;font-size:15px}
+.btn-edit:hover{background:#e2e8f0;color:var(--text)}
 .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--muted);font-size:14px}
 .empty-icon{font-size:52px;margin-bottom:14px}
 
@@ -450,6 +452,30 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
   </div>
 </div>
 
+<!-- MODAL EDITAR CLIENTE -->
+<div class="overlay" id="modal-editar" style="display:none" onclick="if(event.target===this)closeModal('modal-editar')">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar Cliente</div>
+    <div class="modal-sub" id="edit-sub"></div>
+    <label>Cédula *</label>
+    <input type="text" id="edit-cedula" placeholder="Cédula">
+    <label>Nombre completo *</label>
+    <input type="text" id="edit-nombre" placeholder="Nombre">
+    <label>Dirección</label>
+    <input type="text" id="edit-dir" placeholder="Dirección">
+    <label>N° de Medidor *</label>
+    <input type="text" id="edit-med" placeholder="Medidor">
+    <label>Lectura anterior (m³) *</label>
+    <input type="number" id="edit-lec-ant" placeholder="Lectura anterior">
+    <label>Lectura actual (m³) <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">(dejar vacío para borrarla)</span></label>
+    <input type="number" id="edit-lec-act" placeholder="Sin lectura actual">
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeModal('modal-editar')">Cancelar</button>
+      <button class="btn-pri" onclick="guardarEdicion()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVO CLIENTE -->
 <div class="overlay" id="modal-nuevo" style="display:none" onclick="if(event.target===this)closeModal('modal-nuevo')">
   <div class="modal">
@@ -603,7 +629,8 @@ function render() {
               ? `<button class="btn-fac-done" onclick="verFactura('${c.id}')">🧾 Ver Factura</button>`
               : `<button class="btn-fac" onclick="verFactura('${c.id}')">🧾 Generar Factura</button>`
           }
-          <button class="btn-del" onclick="eliminarCliente('${c.id}')">🗑️</button>
+          <button class="btn-del"  onclick="eliminarCliente('${c.id}')">🗑️</button>
+          <button class="btn-edit" onclick="openEditModal('${c.id}')">✏️</button>
         </div>
       </div>`;
   }).join('');
@@ -696,6 +723,52 @@ function eliminarCliente(id) {
   if (!confirm('¿Eliminar este cliente?')) return;
   clients = clients.filter(c => c.id !== id);
   saveData(); showToast('Cliente eliminado'); render();
+}
+
+function openEditModal(id) {
+  const c = clients.find(x => x.id === id);
+  if (!c) return;
+  selectedClientId = id;
+  document.getElementById('edit-sub').textContent    = `CC ${c.cedula} — ${c.nombre}`;
+  document.getElementById('edit-cedula').value       = c.cedula || '';
+  document.getElementById('edit-nombre').value       = c.nombre || '';
+  document.getElementById('edit-dir').value          = c.direccion || '';
+  document.getElementById('edit-med').value          = c.medidor || '';
+  document.getElementById('edit-lec-ant').value      = c.lecturaAnterior ?? '';
+  document.getElementById('edit-lec-act').value      = c.lecturaActual ?? '';
+  document.getElementById('modal-editar').style.display = 'flex';
+  setTimeout(() => document.getElementById('edit-nombre').focus(), 100);
+}
+
+function guardarEdicion() {
+  const c = clients.find(x => x.id === selectedClientId);
+  if (!c) return;
+
+  const nuevaCedula = document.getElementById('edit-cedula').value.trim();
+  const nombre      = document.getElementById('edit-nombre').value.trim();
+  const dir         = document.getElementById('edit-dir').value.trim();
+  const med         = document.getElementById('edit-med').value.trim();
+  const lecAnt      = parseFloat(document.getElementById('edit-lec-ant').value);
+  const lecActRaw   = document.getElementById('edit-lec-act').value.trim();
+  const lecAct      = lecActRaw === '' ? null : parseFloat(lecActRaw);
+
+  if (!nuevaCedula) { showToast('La cédula es obligatoria','error'); return; }
+  if (nuevaCedula !== c.cedula && clients.find(x => x.cedula === nuevaCedula)) {
+    showToast('Ya existe otro cliente con esa cédula','error'); return;
+  }
+  if (!nombre || !med || isNaN(lecAnt)) { showToast('Completa todos los campos requeridos','error'); return; }
+  if (lecAct !== null && lecAct <= lecAnt) { showToast('La lectura actual debe ser mayor a la anterior','error'); return; }
+
+  c.cedula          = nuevaCedula;
+  c.id              = nuevaCedula;
+  c.nombre          = nombre;
+  c.direccion       = dir;
+  c.medidor         = med;
+  c.lecturaAnterior = lecAnt;
+  c.lecturaActual   = lecAct;
+  if (lecAct === null) { c.fechaAct = null; c.facturaGenerada = false; }
+
+  saveData(); closeModal('modal-editar'); showToast(`✓ ${nombre} actualizado`); render();
 }
 
 // ═══════════════════════════════════════════════════════
