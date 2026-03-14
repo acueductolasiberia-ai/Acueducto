@@ -1110,36 +1110,31 @@ async function pullFromSheets() {
   hideLoading();
 }
 
-// PUSH — envía clientes a Sheets via POST (evita límite de URL en GET)
+// PUSH — envía clientes a Sheets via GET (Google Apps Script no acepta POST desde browser)
 async function syncNow() {
   if (!SCRIPT_URL) return;
   setSyncStatus('syncing','Guardando en Sheets…');
   try {
-    const body = JSON.stringify({action:'sync', clients});
-    let res, data;
-    try {
-      // Intentar POST primero (más confiable con muchos datos)
-      res  = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: {'Content-Type':'application/json'},
-        body
-      });
-      data = JSON.parse(await res.text());
-    } catch {
-      // Fallback a GET si POST falla (CORS en algunos despliegues)
-      const payload = encodeURIComponent(body);
-      res  = await fetch(`${SCRIPT_URL}?data=${payload}`, {method:'GET',redirect:'follow'});
-      data = JSON.parse(await res.text());
+    // Dividir en lotes si hay muchos clientes (evita límite de URL ~8KB)
+    const BATCH = 30;
+    for (let i = 0; i < clients.length; i += BATCH) {
+      const lote    = clients.slice(i, i + BATCH);
+      const isFirst = i === 0;
+      const payload = encodeURIComponent(JSON.stringify({
+        action: isFirst ? 'sync' : 'syncAppend',
+        clients: lote
+      }));
+      const res  = await fetch(`${SCRIPT_URL}?data=${payload}`, {method:'GET', redirect:'follow'});
+      const data = JSON.parse(await res.text());
+      if (!data.ok) {
+        setSyncStatus('error','Error al guardar');
+        console.error('Sheets error:', data.error);
+        return;
+      }
     }
-    if (data.ok) {
-      const hora = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-      setSyncStatus('ok',`Guardado ${hora}`);
-      localStorage.setItem('acueducto_last_sync', new Date().toISOString());
-    } else {
-      setSyncStatus('error','Error al guardar');
-      console.error('Sheets error:', data.error);
-    }
+    const hora = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    setSyncStatus('ok',`Guardado ${hora}`);
+    localStorage.setItem('acueducto_last_sync', new Date().toISOString());
   } catch (err) {
     setSyncStatus('error','Sin conexión');
     console.error('syncNow error:', err);
