@@ -239,6 +239,21 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
 .fac-tl{font-weight:800;font-size:15px;color:var(--text)}
 .fac-tv{font-size:26px;font-weight:800;color:var(--azul-m)}
 .fac-foot{background:var(--amber-l);padding:12px 20px;font-size:12px;color:#92400e;line-height:1.5}
+.colilla-sep{border:none;border-top:2px dashed #cbd5e1;margin:20px 20px 0}
+.colilla{padding:16px 20px 20px;display:flex;justify-content:space-between;align-items:center;gap:14px;background:#f8fafc}
+.colilla-left{flex:1}
+.colilla-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.colilla-nombre{font-size:14px;font-weight:800;color:var(--text)}
+.colilla-cc{font-size:12px;color:var(--azul-m);font-weight:700;margin-top:2px}
+.colilla-med{font-size:11px;color:var(--muted);margin-top:2px}
+.colilla-right{text-align:right;flex-shrink:0}
+.colilla-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.colilla-valor{font-size:22px;font-weight:800;color:var(--azul-m);margin-top:4px}
+.colilla-vence{font-size:11px;color:#92400e;margin-top:4px;font-weight:600}
+.btn-abono{flex:1;background:#dcfce7;color:#15803d;border:1.5px solid #bbf7d0;border-radius:var(--rb);padding:10px;font-weight:700;font-size:12px}
+.btn-abono:hover{background:#bbf7d0}
+.deuda-bar-wrap{background:#f1f5f9;border-radius:20px;height:6px;margin-top:6px;overflow:hidden}
+.deuda-bar{height:6px;border-radius:20px;background:var(--red);transition:width .4s}
 
 /* ── MOBILE ─────────────────────────── */
 @media(max-width:767px){
@@ -313,6 +328,7 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
     <div class="sstat"><div class="sstat-icon si-amber">⏳</div><div><div class="sstat-val" id="st-pend">0</div><div class="sstat-lbl">Pendientes</div></div></div>
     <div class="sstat"><div class="sstat-icon si-green">✅</div><div><div class="sstat-val" id="st-aldia">0</div><div class="sstat-lbl">Al día</div></div></div>
     <div class="sstat"><div class="sstat-icon si-indigo">🧾</div><div><div class="sstat-val" id="st-fac">0</div><div class="sstat-lbl">Facturados</div></div></div>
+    <div class="sstat"><div class="sstat-icon" style="background:rgba(220,38,38,.28)">💸</div><div><div class="sstat-val" id="st-deuda" style="font-size:13px">$0</div><div class="sstat-lbl">Deuda total</div></div></div>
   </div>
 
   <nav class="sb-nav">
@@ -332,6 +348,10 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
     <button class="nav-btn" data-filter="facturado" onclick="setFilter('facturado')">
       <span class="badge-dot" style="background:var(--facturado)"></span>🧾 Facturadas
       <span class="nav-count" id="nc-fac">0</span>
+    </button>
+    <button class="nav-btn" data-filter="deuda" onclick="setFilter('deuda')">
+      <span class="badge-dot" style="background:#dc2626"></span>💸 Deudas
+      <span class="nav-count" id="nc-deuda">0</span>
     </button>
   </nav>
 
@@ -370,6 +390,7 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
     <button class="fchip" data-filter="pendiente"  onclick="setFilter('pendiente')">⏳ Pendientes</button>
     <button class="fchip" data-filter="al-dia"     onclick="setFilter('al-dia')">✅ Al día</button>
     <button class="fchip" data-filter="facturado"  onclick="setFilter('facturado')">🧾 Facturadas</button>
+    <button class="fchip" data-filter="deuda"      onclick="setFilter('deuda')">💸 Deudas</button>
   </div>
 
   <div class="content-area">
@@ -380,6 +401,7 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
       <div class="stat-card green"><div class="stat-ico green">✅</div><div><div class="stat-num green" id="sd-aldia">0</div><div class="stat-label">Al día</div></div></div>
       <div class="stat-card indigo"><div class="stat-ico indigo">🧾</div><div><div class="stat-num indigo" id="sd-fac">0</div><div class="stat-label">Facturadas</div></div></div>
       <div class="stat-card purple"><div class="stat-ico purple">📊</div><div><div class="stat-num purple" id="sd-cons">0 m³</div><div class="stat-label">Consumo total</div></div></div>
+      <div class="stat-card" style="border-color:#dc2626"><div class="stat-ico" style="background:#fef2f2">💸</div><div><div class="stat-num" id="sd-deuda" style="color:#dc2626;font-size:16px">$0</div><div class="stat-label">Deuda acumulada</div></div></div>
     </div>
 
     <div class="section-hdr">
@@ -476,6 +498,21 @@ input:focus{border-color:var(--azul-m);background:var(--surface)}
   </div>
 </div>
 
+<!-- MODAL ABONO -->
+<div class="overlay" id="modal-abono" style="display:none" onclick="if(event.target===this)closeModal('modal-abono')">
+  <div class="modal">
+    <div class="modal-title">💸 Registrar Abono</div>
+    <div class="modal-sub" id="abono-sub"></div>
+    <div class="modal-info" id="abono-info"></div>
+    <label>Valor del abono (COP)</label>
+    <input type="number" id="abono-input" placeholder="Ej: 20000">
+    <div class="modal-actions">
+      <button class="btn-sec" onclick="closeModal('modal-abono')">Cancelar</button>
+      <button class="btn-pri" style="background:#15803d" onclick="guardarAbono()">💾 Registrar Abono</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVO CLIENTE -->
 <div class="overlay" id="modal-nuevo" style="display:none" onclick="if(event.target===this)closeModal('modal-nuevo')">
   <div class="modal">
@@ -525,6 +562,15 @@ const getConsumo = c  => c.lecturaActual != null ? c.lecturaActual - c.lecturaAn
 const calcTarifa = x  => x == null ? null : x <= LIMITE_MINIMO ? TARIFA_MINIMA : TARIFA_MINIMA + (x - LIMITE_MINIMO) * TARIFA_EXCESO;
 const getValor   = c  => calcTarifa(getConsumo(c));
 
+function ultimoDomingoMes() {
+  const hoy = new Date();
+  // Último día del mes actual
+  const ultimo = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+  // Retroceder hasta encontrar domingo (0 = domingo)
+  ultimo.setDate(ultimo.getDate() - ultimo.getDay());
+  return ultimo;
+}
+
 // ═══════════════════════════════════════════════════════
 //  STORAGE
 // ═══════════════════════════════════════════════════════
@@ -560,10 +606,12 @@ function getEstado(c) {
 function render() {
   document.getElementById('sidebar-mes').textContent = mesActual();
 
-  const pend  = clients.filter(c => getEstado(c) === 'pendiente').length;
-  const aldia = clients.filter(c => getEstado(c) === 'al-dia').length;
-  const fac   = clients.filter(c => getEstado(c) === 'facturado').length;
-  const cons  = clients.filter(c => c.lecturaActual != null).reduce((s,c) => s + getConsumo(c), 0);
+  const pend       = clients.filter(c => getEstado(c) === 'pendiente').length;
+  const aldia      = clients.filter(c => getEstado(c) === 'al-dia').length;
+  const fac        = clients.filter(c => getEstado(c) === 'facturado').length;
+  const cons       = clients.filter(c => c.lecturaActual != null).reduce((s,c) => s + getConsumo(c), 0);
+  const conDeuda   = clients.filter(c => (c.deuda||0) > 0).length;
+  const totalDeuda = clients.reduce((s,c) => s + (c.deuda||0), 0);
 
   // Stats
   ['st-total','sd-total'].forEach(id => {const el=document.getElementById(id);if(el)el.textContent=clients.length});
@@ -572,25 +620,36 @@ function render() {
   ['st-fac','sd-fac'].forEach(id     => {const el=document.getElementById(id);if(el)el.textContent=fac});
   const sdcons = document.getElementById('sd-cons');
   if(sdcons) sdcons.textContent = cons + ' m³';
+  ['st-deuda','sd-deuda'].forEach(id => {const el=document.getElementById(id);if(el)el.textContent=formatCOP(totalDeuda)});
 
   // Nav counts
   document.getElementById('nc-todos').textContent  = clients.length;
   document.getElementById('nc-pend').textContent   = pend;
   document.getElementById('nc-aldia').textContent  = aldia;
   document.getElementById('nc-fac').textContent    = fac;
+  document.getElementById('nc-deuda').textContent  = conDeuda;
 
   // Filter
-  const filtered = clients.filter(c => currentFilter === 'todos' ? true : getEstado(c) === currentFilter);
+  let filtered;
+  if (currentFilter === 'deuda') {
+    filtered = clients.filter(c => (c.deuda||0) > 0);
+  } else {
+    filtered = clients.filter(c => currentFilter === 'todos' ? true : getEstado(c) === currentFilter);
+  }
 
   // Section title
-  const titles = {todos:'Lista de Clientes', pendiente:'⏳ Clientes Pendientes', 'al-dia':'✅ Clientes Al Día', facturado:'🧾 Clientes Facturados'};
+  const titles = {todos:'Lista de Clientes', pendiente:'⏳ Clientes Pendientes', 'al-dia':'✅ Clientes Al Día', facturado:'🧾 Clientes Facturados', deuda:'💸 Clientes con Deuda'};
   document.getElementById('topbar-title').textContent  = titles[currentFilter] || 'Clientes';
   document.getElementById('section-title').textContent = titles[currentFilter] || 'Clientes';
   document.getElementById('section-count').textContent = `${filtered.length} cliente${filtered.length !== 1 ? 's' : ''}`;
 
   const list = document.getElementById('client-list');
   if (!filtered.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">${currentFilter==='facturado'?'🧾':'🔍'}</div><div>${currentFilter==='facturado'?'Aún no hay clientes facturados este mes':'No hay clientes en esta categoría'}</div></div>`;
+    const emptyMsg = currentFilter==='facturado' ? 'Aún no hay clientes facturados este mes'
+                   : currentFilter==='deuda'     ? '✅ Ningún cliente tiene deudas pendientes'
+                   : 'No hay clientes en esta categoría';
+    const emptyIco = currentFilter==='deuda' ? '🎉' : currentFilter==='facturado' ? '🧾' : '🔍';
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">${emptyIco}</div><div>${emptyMsg}</div></div>`;
     return;
   }
 
@@ -601,21 +660,33 @@ function render() {
     const isPend  = estado === 'pendiente';
     const isFac   = estado === 'facturado';
     const isAldia = estado === 'al-dia';
+    const deuda   = c.deuda || 0;
 
     const badgeClass = isPend ? 'b-pend' : isFac ? 'b-facturado' : 'b-aldia';
     const badgeTxt   = isPend ? '⏳ Pendiente' : isFac ? '🧾 Facturado' : '✅ Al día';
     const cardClass  = isPend ? 'pendiente' : isFac ? 'facturado' : 'al-dia';
 
+    const deudaBadge = deuda > 0
+      ? `<span class="badge" style="background:#fef2f2;color:#dc2626;margin-left:6px">💸 ${formatCOP(deuda)}</span>`
+      : '';
+
+    const deudaRow = deuda > 0 ? `
+      <div style="margin-bottom:10px;background:#fef2f2;border-radius:9px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:#dc2626">💸 Deuda acumulada</span>
+        <span style="font-size:14px;font-weight:800;color:#dc2626">${formatCOP(deuda)}</span>
+      </div>` : '';
+
     return `
       <div class="client-card ${cardClass}">
         <div class="card-top">
           <div>
-            <div class="client-name">${escHtml(c.nombre)}</div>
+            <div class="client-name">${escHtml(c.nombre)}${deudaBadge}</div>
             <div class="client-cedula">CC ${escHtml(c.cedula || c.id)}</div>
             <div class="client-meta">📍 ${escHtml(c.direccion||'Sin dirección')} &nbsp;·&nbsp; 🔢 ${escHtml(c.medidor)}</div>
           </div>
           <span class="badge ${badgeClass}">${badgeTxt}</span>
         </div>
+        ${deudaRow}
         <div class="lec-grid">
           <div class="lec-box"><div class="lec-lbl">Anterior</div><div class="lec-val">${c.lecturaAnterior}<small style="font-size:9px;color:#94a3b8;font-weight:400"> m³</small></div></div>
           <div class="lec-box ${isPend?'warn':isAldia?'ok':'indigo'}"><div class="lec-lbl">Actual</div><div class="lec-val">${c.lecturaActual??'—'}<small style="font-size:9px;color:#94a3b8;font-weight:400">${c.lecturaActual?' m³':''}</small></div></div>
@@ -629,6 +700,7 @@ function render() {
               ? `<button class="btn-fac-done" onclick="verFactura('${c.id}')">🧾 Ver Factura</button>`
               : `<button class="btn-fac" onclick="verFactura('${c.id}')">🧾 Generar Factura</button>`
           }
+          ${deuda > 0 ? `<button class="btn-abono" onclick="openAbonoModal('${c.id}')">💵 Abonar</button>` : ''}
           <button class="btn-del"  onclick="eliminarCliente('${c.id}')">🗑️</button>
           <button class="btn-edit" onclick="openEditModal('${c.id}')">✏️</button>
         </div>
@@ -725,6 +797,28 @@ function eliminarCliente(id) {
   saveData(); showToast('Cliente eliminado'); render();
 }
 
+function openAbonoModal(id) {
+  selectedClientId = id;
+  const c = clients.find(x => x.id === id);
+  document.getElementById('abono-sub').textContent = `${c.nombre} — CC ${c.cedula}`;
+  document.getElementById('abono-info').innerHTML  = `Deuda actual: <strong>${formatCOP(c.deuda||0)}</strong>`;
+  document.getElementById('abono-input').value = '';
+  document.getElementById('modal-abono').style.display = 'flex';
+  setTimeout(() => document.getElementById('abono-input').focus(), 100);
+}
+
+function guardarAbono() {
+  const c   = clients.find(x => x.id === selectedClientId);
+  const val = parseFloat(document.getElementById('abono-input').value);
+  if (isNaN(val) || val <= 0) { showToast('Ingresa un valor válido','error'); return; }
+  const deudaActual = c.deuda || 0;
+  if (val > deudaActual) { showToast(`El abono no puede superar la deuda (${formatCOP(deudaActual)})`,'error'); return; }
+  c.deuda = Math.round(deudaActual - val);
+  if (c.deuda === 0) showToast(`✓ Deuda de ${c.nombre} saldada completamente 🎉`);
+  else showToast(`✓ Abono registrado — Saldo restante: ${formatCOP(c.deuda)}`);
+  saveData(); closeModal('modal-abono'); render();
+}
+
 function openEditModal(id) {
   const c = clients.find(x => x.id === id);
   if (!c) return;
@@ -779,15 +873,33 @@ function verFactura(id) {
   const consumo = getConsumo(c);
   const valor   = getValor(c);
   const fecha   = new Date();
-  const fechaLim = new Date(); fechaLim.setDate(fechaLim.getDate() + 15);
+  const fechaLim = ultimoDomingoMes();
   const numFac  = `FAC-${String(c.cedula).padStart(6,'0')}-${fecha.getFullYear()}${String(fecha.getMonth()+1).padStart(2,'0')}`;
+  const deudaAnterior = c.deuda || 0;
+  const totalConDeuda = valor + deudaAnterior;
 
-  // Marcar como facturado
+  // Marcar como facturado y acumular deuda
   if (!c.facturaGenerada) {
     c.facturaGenerada = true;
+    c.deuda = (c.deuda || 0) + valor;  // acumula el valor a la deuda
     saveData();
     render();
   }
+
+  const filaDeudaAnterior = deudaAnterior > 0 ? `
+      <div class="fac-tr">
+        <div class="fac-tr-l">
+          <div class="fac-tr-t">Saldo pendiente de meses anteriores</div>
+          <div class="fac-tr-s">Deuda acumulada sin cancelar</div>
+        </div>
+        <div class="fac-tr-v" style="color:#dc2626">${formatCOP(deudaAnterior)}</div>
+      </div>` : '';
+
+  const filaTotalConDeuda = deudaAnterior > 0 ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed #e2e8f0;margin-top:4px">
+        <span style="font-size:12px;color:#dc2626;font-weight:700">TOTAL INCLUYENDO DEUDA ANTERIOR</span>
+        <span style="font-size:18px;font-weight:800;color:#dc2626">${formatCOP(totalConDeuda)}</span>
+      </div>` : '';
 
   document.getElementById('factura-content').innerHTML = `
     <div class="fac-hdr">
@@ -809,7 +921,7 @@ function verFactura(id) {
         <div class="fac-sec-t">Período de Facturación</div>
         <div class="fac-row"><span>Período:</span><strong>${mesActual()}</strong></div>
         <div class="fac-row"><span>Emisión:</span><strong>${fecha.toLocaleDateString('es-CO')}</strong></div>
-        <div class="fac-row"><span>Límite pago:</span><strong>${fechaLim.toLocaleDateString('es-CO')}</strong></div>
+        <div class="fac-row"><span>Límite pago:</span><strong style="color:#dc2626">${fechaLim.toLocaleDateString('es-CO')}</strong></div>
         <div class="fac-row"><span>Fecha lectura:</span><strong>${c.fechaAct||'—'}</strong></div>
       </div>
     </div>
@@ -829,12 +941,28 @@ function verFactura(id) {
         </div>
         <div class="fac-tr-v">${formatCOP(valor)}</div>
       </div>
+      ${filaDeudaAnterior}
       <div class="fac-total">
-        <span class="fac-tl">TOTAL A PAGAR</span>
+        <span class="fac-tl">TOTAL MES ACTUAL</span>
         <span class="fac-tv">${formatCOP(valor)}</span>
       </div>
+      ${filaTotalConDeuda}
     </div>
-    <div class="fac-foot">⚠️ El no pago oportuno causará intereses de mora y posible suspensión del servicio de acueducto.</div>`;
+    <div class="fac-foot">⚠️ El no pago oportuno causará intereses de mora y posible suspensión del servicio de acueducto.<br>📅 Fecha límite de pago: <strong>${fechaLim.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</strong></div>
+    <hr class="colilla-sep">
+    <div class="colilla">
+      <div class="colilla-left">
+        <div class="colilla-title">✂️ &nbsp; Colilla de pago</div>
+        <div class="colilla-nombre">${escHtml(c.nombre)}</div>
+        <div class="colilla-cc">CC ${escHtml(c.cedula)}</div>
+        <div class="colilla-med">Medidor ${escHtml(c.medidor)} &nbsp;·&nbsp; ${mesActual()}</div>
+      </div>
+      <div class="colilla-right">
+        <div class="colilla-lbl">Valor a pagar</div>
+        <div class="colilla-valor">${formatCOP(deudaAnterior > 0 ? totalConDeuda : valor)}</div>
+        <div class="colilla-vence">Vence: ${fechaLim.toLocaleDateString('es-CO')}</div>
+      </div>
+    </div>`;
 
   document.getElementById('main-screen').style.display    = 'none';
   document.getElementById('factura-screen').style.display = 'block';
@@ -906,6 +1034,8 @@ function ejecutarCierre() {
   if (!act.length) { closeModal('modal-cierre'); return; }
   clients = clients.map(c => {
     if (c.lecturaActual == null) return c;
+    // Al hacer cierre: la deuda ya fue acumulada al generar la factura,
+    // se conserva para el siguiente mes. Solo se resetea lectura y estado.
     return {...c, lecturaAnterior:c.lecturaActual, lecturaActual:null, fechaAct:null, facturaGenerada:false};
   });
   saveData(); closeModal('modal-cierre'); render();
