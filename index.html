@@ -875,16 +875,18 @@ function verFactura(id) {
   const fecha   = new Date();
   const fechaLim = ultimoDomingoMes();
   const numFac  = `FAC-${String(c.cedula).padStart(6,'0')}-${fecha.getFullYear()}${String(fecha.getMonth()+1).padStart(2,'0')}`;
-  const deudaAnterior = c.deuda || 0;
-  const totalConDeuda = valor + deudaAnterior;
-
   // Marcar como facturado y acumular deuda
   if (!c.facturaGenerada) {
+    c.deudaAlFacturar = c.deuda || 0; // snapshot de deuda ANTES de sumar este mes
     c.facturaGenerada = true;
-    c.deuda = (c.deuda || 0) + valor;  // acumula el valor a la deuda
+    c.deuda = c.deudaAlFacturar + valor;
     saveData();
     render();
   }
+
+  // Para mostrar la factura siempre usamos el snapshot guardado
+  const deudaAnterior = c.deudaAlFacturar || 0;
+  const totalConDeuda = valor + deudaAnterior;
 
   const filaDeudaAnterior = deudaAnterior > 0 ? `
       <div class="fac-tr">
