@@ -1083,10 +1083,12 @@ async function pullFromSheets() {
     if (data.ok) {
       if (data.clients && data.clients.length > 0) {
         clients = data.clients;
-        // Asegura campo facturaGenerada y cedula
+        // Normalizar campos al cargar desde Sheets
         clients.forEach(c => {
-          if (c.cedula == null) c.cedula = String(c.id);
+          if (c.cedula == null)          c.cedula          = String(c.id);
           if (c.facturaGenerada == null) c.facturaGenerada = false;
+          if (c.deuda == null)           c.deuda           = 0;
+          if (c.deudaAlFacturar == null) c.deudaAlFacturar = 0;
         });
         saveData();
         render();
@@ -1108,23 +1110,39 @@ async function pullFromSheets() {
   hideLoading();
 }
 
-// PUSH — envía clientes a Sheets
+// PUSH — envía clientes a Sheets via POST (evita límite de URL en GET)
 async function syncNow() {
   if (!SCRIPT_URL) return;
   setSyncStatus('syncing','Guardando en Sheets…');
   try {
-    const payload = encodeURIComponent(JSON.stringify({action:'sync', clients}));
-    const res     = await fetch(`${SCRIPT_URL}?data=${payload}`, {method:'GET',redirect:'follow'});
-    const data    = JSON.parse(await res.text());
+    const body = JSON.stringify({action:'sync', clients});
+    let res, data;
+    try {
+      // Intentar POST primero (más confiable con muchos datos)
+      res  = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: {'Content-Type':'application/json'},
+        body
+      });
+      data = JSON.parse(await res.text());
+    } catch {
+      // Fallback a GET si POST falla (CORS en algunos despliegues)
+      const payload = encodeURIComponent(body);
+      res  = await fetch(`${SCRIPT_URL}?data=${payload}`, {method:'GET',redirect:'follow'});
+      data = JSON.parse(await res.text());
+    }
     if (data.ok) {
       const hora = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
       setSyncStatus('ok',`Guardado ${hora}`);
       localStorage.setItem('acueducto_last_sync', new Date().toISOString());
     } else {
       setSyncStatus('error','Error al guardar');
+      console.error('Sheets error:', data.error);
     }
-  } catch {
+  } catch (err) {
     setSyncStatus('error','Sin conexión');
+    console.error('syncNow error:', err);
   }
 }
 
