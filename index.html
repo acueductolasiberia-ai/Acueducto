@@ -1227,25 +1227,49 @@ async function pullFromSheets() {
   hideLoading();
 }
 
-// PUSH — envía clientes a Sheets via GET (Google Apps Script no acepta POST desde browser)
+// PUSH — envía clientes a Sheets en lotes pequeños (límite URL de GAS ~2KB)
 async function syncNow() {
   if (!SCRIPT_URL) return;
   setSyncStatus('syncing','Guardando en Sheets…');
+
+  // Comprime cada cliente a solo los campos necesarios para ahorrar espacio en URL
+  function comprimirCliente(c) {
+    return {
+      id:  c.id,
+      cc:  c.cedula,
+      nom: c.nombre,
+      dir: c.direccion || '',
+      tip: c.tipo || 'medidor',
+      med: c.medidor || '',
+      la:  c.lecturaAnterior,
+      lac: c.lecturaActual,
+      fa:  c.fechaAct,
+      fg:  c.facturaGenerada ? 1 : 0,
+      deu: c.deuda || 0,
+      daf: c.deudaAlFacturar || 0
+    };
+  }
+
+  const BATCH = 8; // lotes pequeños para no superar límite de URL
   try {
-    // Dividir en lotes si hay muchos clientes (evita límite de URL ~8KB)
-    const BATCH = 30;
     for (let i = 0; i < clients.length; i += BATCH) {
-      const lote    = clients.slice(i, i + BATCH);
+      const lote    = clients.slice(i, i + BATCH).map(comprimirCliente);
       const isFirst = i === 0;
       const payload = encodeURIComponent(JSON.stringify({
-        action: isFirst ? 'sync' : 'syncAppend',
+        action:  isFirst ? 'sync' : 'syncAppend',
         clients: lote
       }));
-      const res  = await fetch(`${SCRIPT_URL}?data=${payload}`, {method:'GET', redirect:'follow'});
+
+      const url = `${SCRIPT_URL}?data=${payload}`;
+      if (url.length > 8000) {
+        console.warn(`Lote ${i/BATCH+1}: URL muy larga (${url.length} chars), reduciendo...`);
+      }
+
+      const res  = await fetch(url, {method:'GET', redirect:'follow'});
       const data = JSON.parse(await res.text());
       if (!data.ok) {
         setSyncStatus('error','Error al guardar');
-        console.error('Sheets error:', data.error);
+        console.error('Sheets error lote', i/BATCH+1, ':', data.error);
         return;
       }
     }
