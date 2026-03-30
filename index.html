@@ -1112,11 +1112,58 @@ function importarDatos(event) {
     try {
       const data = JSON.parse(e.target.result);
       if (!data.clients || !Array.isArray(data.clients)) { showToast('Archivo inválido','error'); return; }
-      if (!confirm(`¿Restaurar ${data.clients.length} clientes del ${data.mes||'archivo'}?`)) return;
+
+      const esLote      = data.lote != null;
+      const totalLotes  = data.totalLotes || 1;
+      const infoLote    = esLote ? ` (Lote ${data.lote} de ${totalLotes})` : '';
+
+      // Si es un lote o si ya hay clientes, preguntar si agregar o reemplazar
+      if (esLote || clients.length > 0) {
+        const accion = confirm(
+          `Archivo: ${data.clients.length} clientes${infoLote}\n\n` +
+          `✅ Aceptar = AGREGAR a los ${clients.length} clientes actuales\n` +
+          `❌ Cancelar = REEMPLAZAR todo`
+        );
+        if (accion) {
+          // AGREGAR: fusionar evitando duplicados por id
+          let agregados = 0;
+          data.clients.forEach(nuevo => {
+            if (!nuevo.cedula) nuevo.cedula = String(nuevo.id);
+            if (!nuevo.tipo)   nuevo.tipo   = 'medidor';
+            if (nuevo.deuda == null) nuevo.deuda = 0;
+            if (nuevo.deudaAlFacturar == null) nuevo.deudaAlFacturar = 0;
+            // Migrar id si es formato antiguo
+            if (nuevo.id === nuevo.cedula && nuevo.medidor) {
+              nuevo.id = `${nuevo.cedula}-${nuevo.medidor.replace(/\s+/g,'')}`;
+            }
+            if (!clients.find(c => c.id === nuevo.id)) {
+              clients.push(nuevo);
+              agregados++;
+            }
+          });
+          saveData(); render();
+          showToast(`✓ ${agregados} clientes agregados${infoLote}`);
+          event.target.value = '';
+          return;
+        }
+      }
+
+      // REEMPLAZAR todo
+      if (!confirm(`¿Reemplazar TODOS los clientes con los ${data.clients.length} del archivo?`)) {
+        event.target.value = ''; return;
+      }
       clients = data.clients;
-      // Migrar clientes sin cédula
-      clients.forEach(c => { if (!c.cedula) c.cedula = String(c.id); });
-      saveData(); render(); showToast(`✓ ${clients.length} clientes restaurados`);
+      clients.forEach(c => {
+        if (!c.cedula) c.cedula = String(c.id);
+        if (!c.tipo)   c.tipo   = 'medidor';
+        if (c.deuda == null) c.deuda = 0;
+        if (c.deudaAlFacturar == null) c.deudaAlFacturar = 0;
+        if (c.id === c.cedula && c.medidor) {
+          c.id = `${c.cedula}-${c.medidor.replace(/\s+/g,'')}`;
+        }
+      });
+      saveData(); render();
+      showToast(`✓ ${clients.length} clientes cargados`);
     } catch { showToast('Error al leer el archivo','error'); }
     event.target.value = '';
   };
